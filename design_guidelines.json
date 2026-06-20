@@ -1,0 +1,89 @@
+{
+  "project_name": "Skill Tank LMS",
+  "theme": "Light",
+  "archetype": "Archetype 1: Organic & Earthy",
+  "vibe": "Professional, clear, premium, trusting. Uses a mix of crisp 'Swiss' layout principles with 'Organic' color warmth to avoid feeling overly sterile.",
+  "design_system": {
+    "colors": {
+      "--green": "#00b879",
+      "--green-dark": "#008e60",
+      "--green-soft": "#e1f7ef",
+      "--bg-base": "#f8fafc",
+      "--bg-surface": "#ffffff",
+      "--text-main": "#0f172a",
+      "--text-muted": "#64748b",
+      "--border-light": "#e2e8f0",
+      "--border-hover": "#cbd5e1",
+      "--shadow-sm": "0 2px 4px rgba(15, 23, 42, 0.04)",
+      "--shadow-md": "0 4px 6px -1px rgba(15, 23, 42, 0.06)",
+      "--shadow-lg": "0 12px 40px rgba(21, 37, 49, 0.08)"
+    },
+    "typography": {
+      "imports": "@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap');",
+      "heading_font": "'Outfit', sans-serif",
+      "body_font": "'Manrope', sans-serif",
+      "rules": {
+        "h1": "font-size: clamp(2.5rem, 5vw, 4rem); letter-spacing: -0.03em; line-height: 1.1; font-weight: 700; font-family: var(--font-heading); color: var(--text-main);",
+        "h2": "font-size: clamp(1.8rem, 3vw, 2.5rem); letter-spacing: -0.02em; line-height: 1.2; font-weight: 600; font-family: var(--font-heading); color: var(--text-main);",
+        "h3": "font-size: 1.5rem; letter-spacing: -0.01em; line-height: 1.3; font-weight: 600; font-family: var(--font-heading); color: var(--text-main);",
+        "body": "font-size: 1rem; line-height: 1.6; color: var(--text-muted); font-family: var(--font-body);"
+      }
+    },
+    "spacing": {
+      "--space-2": "0.5rem",
+      "--space-4": "1rem",
+      "--space-6": "1.5rem",
+      "--space-8": "2rem",
+      "--space-12": "3rem",
+      "--space-16": "4rem",
+      "--space-24": "6rem"
+    },
+    "surfaces_and_components": {
+      "cards": "background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 12px; padding: var(--space-6); box-shadow: var(--shadow-sm); transition: transform 0.2s ease, box-shadow 0.2s ease;",
+      "cards_hover": "transform: translateY(-2px); box-shadow: var(--shadow-md);",
+      "buttons_primary": "background: var(--green); color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; transition: background 0.2s ease;",
+      "buttons_primary_hover": "background: var(--green-dark);",
+      "glass_header": "background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-light); z-index: 50; position: sticky; top: 0;"
+    }
+  },
+  "layout_strategies": {
+    "dashboard_grid": "display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-6);",
+    "sidebar_layout": "display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; gap: 0;",
+    "course_detail_split": "display: grid; grid-template-columns: 1fr 380px; gap: var(--space-12); align-items: start;"
+  },
+  "image_urls": {
+    "hero_image": {
+      "url": "https://images.unsplash.com/photo-1513258496099-48168024aec0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwyfHxzdHVkZW50JTIwbGVhcm5pbmclMjBsYXB0b3B8ZW58MHx8fHwxNzgxOTc2MjQwfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Student studying with a laptop. Use in Landing page hero."
+    },
+    "login_background": {
+      "url": "https://images.pexels.com/photos/31390421/pexels-photo-31390421.jpeg",
+      "description": "Modern library architecture. Use as the left-panel background image in the Login/Signup screen."
+    },
+    "course_thumbnails": [
+      {
+        "url": "https://images.pexels.com/photos/1181271/pexels-photo-1181271.jpeg",
+        "description": "Laptop displaying code. Use as a thumbnail for tech courses."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1531297484001-80022131f5a1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njl8MHwxfHNlYXJjaHwxfHx0ZWNobm9sb2d5JTIwY29kaW5nJTIwbGFwdG9wfGVufDB8fHx8MTc4MTk3NjI0MHww&ixlib=rb-4.1.0&q=85",
+        "description": "Workspace with laptop. Use as a thumbnail for business/productivity courses."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1601097874965-f940d4f012b5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwzfHxzdHVkZW50JTIwbGVhcm5pbmclMjBsYXB0b3B8ZW58MHx8fHwxNzgxOTc2MjQwfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Student working on Macbook. Use as thumbnail for design/marketing courses."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "CRITICAL: Tailwind CSS is NOT installed and MUST NOT be used. Write pure CSS classes in styles.css and apply them as className in App.js.",
+    "Update standard CSS variables in styles.css to match the design_system colors provided above. Ensure --green and --green-dark remain the brand focal points.",
+    "Add `@import` for Outfit and Manrope Google fonts at the top of styles.css.",
+    "Refactor generic `div` soup into semantic HTML tags (`main`, `section`, `header`, `nav`).",
+    "For the Landing page hero, ensure the text overlay does not get lost on the hero image; use a linear-gradient overlay or place text on a solid color block.",
+    "All interactive elements (buttons, links, form inputs, dashboard tabs) MUST have a `data-testid` attribute (e.g., `data-testid=\"enroll-button\"`).",
+    "Use Lucide-react for all icons; ensure they have consistent sizing (e.g., size={20}) and stroke-width.",
+    "Dashboard tables/grids should utilize the bento grid format (gap-6) and avoid full-screen stretching unless necessary.",
+    "Make sure hover states are correctly applied with transitions for all cards, buttons, and links."
+  ]
+}
