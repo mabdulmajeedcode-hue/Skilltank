@@ -6103,6 +6103,7 @@ function SubscribePage() {
   );
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -6121,7 +6122,7 @@ function SubscribePage() {
       .catch((err) => setStatus(err.message));
   }, [user]);
   const subscribe = async () => {
-    if (!user) return navigate("/login");
+    if (!user) return navigate("/login", { state: { from: location } });
     setLoading(true);
     setStatus("");
     try {
@@ -6223,13 +6224,14 @@ function CertificationDetailPage() {
   const [path, setPath] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [status, setStatus] = useState("");
   useEffect(() => {
     request(`/certifications/${slug}`).then(setPath);
   }, [slug]);
   if (!path) return <Loading />;
   const enrollPath = async () => {
-    if (!user) return navigate("/login");
+    if (!user) return navigate("/login", { state: { from: location } });
     const result = await request(`/certifications/${slug}/enroll`, {
       method: "POST",
     });

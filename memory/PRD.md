@@ -9,9 +9,9 @@ Comprehensive LMS - fix bugs, integrate AI, Google OAuth, redesign entire UI.
 - **AI**: Claude Sonnet 4.6 via emergentintegrations (Emergent LLM key)
 - **Auth**: Custom JWT + Emergent-managed Google OAuth
 - **Payments**: Stripe sandbox simulation
-- **Email**: Resend (key configured, domain verification pending)
+- **Email**: Resend SDK v2.32.2 (key configured, domain verification pending)
 - **Fonts**: Outfit (headings) + Manrope (body) from Google Fonts
-- **Preview URL**: https://7a64f86c-bbda-4081-8a83-f98fc0b5b62f.preview.emergentagent.com
+- **Preview URL**: https://skilltank-lms.preview.emergentagent.com
 
 ## What's Been Implemented
 
@@ -37,6 +37,14 @@ Comprehensive LMS - fix bugs, integrate AI, Google OAuth, redesign entire UI.
 - Interview role cards: dark CTA buttons, styled skill tags
 - Mobile: responsive layouts tested at 375px
 
+### Session 4 — Phase 4: P0 Bug Fixes (2026-02)
+- **Stripe checkout intent preserved**: Protected route now passes `state={{ from: location }}` to login redirect
+- **Login redirects to intended page**: Login/Signup now reads `location.state?.from?.pathname` post-auth
+- **Google OAuth return path**: AuthCallback reads `?returnTo=` param from callback URL
+- **All CTA buttons preserve intent**: CourseDetail.enroll(), SubscribePage.subscribe(), CertificationDetailPage.enrollPath() all pass state to navigate('/login')
+- **Resend SDK fixed**: Replaced raw httpx.post with official resend Python SDK (asyncio.to_thread)
+- **Email recipient hardcoded**: All login notification emails target mabdulmajeed.code@gmail.com per user request
+
 ## Vercel Deployment Notes
 - /app/frontend/vercel.json: SPA redirect rewrites configured
 - REACT_APP_BACKEND_URL in .env
@@ -50,7 +58,7 @@ Comprehensive LMS - fix bugs, integrate AI, Google OAuth, redesign entire UI.
 
 ## Prioritized Backlog
 ### P1
-- Set up Resend verified sending domain for email delivery
+- Set up Resend verified sending domain for email delivery (currently only can send to Resend account owner's email in sandbox mode — domain verification at resend.com/domains required to send to mabdulmajeed.code@gmail.com)
 - Test Google OAuth with real Google account end-to-end
 
 ### P2
