@@ -735,7 +735,7 @@ class Store:
             try:
                 client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=1600)
                 await client.admin.command("ping")
-                self.db = client[os.getenv("MONGO_DB", "skilltank")]
+                self.db = client[os.getenv("MONGO_DB") or os.getenv("DB_NAME", "skilltank")]
                 self.mode = "mongodb"
                 if await self.db.users.count_documents({}) == 0:
                     for name, rows in self.data.items():
