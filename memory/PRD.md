@@ -45,6 +45,8 @@ Comprehensive LMS - fix bugs, integrate AI, Google OAuth, redesign entire UI.
 - **Resend SDK fixed**: Replaced raw httpx.post with official resend Python SDK (asyncio.to_thread)
 - **Email recipient hardcoded**: All login notification emails target mabdulmajeed.code@gmail.com per user request
 - **Real Stripe checkout working**: Updated STRIPE_SECRET_KEY to real sk_test_51TkU9ME key. APP_URL corrected to current preview URL. Buy Now now opens real https://checkout.stripe.com page
+- **Mobile 375px audit**: course-dark-hero h1 reduced (40px → 26px/22px), category-strip smooth iOS scroll, ₹ symbol fixed on subscribe page, 480px breakpoint guards added
+- **Vercel deployment ready**: vercel.json SPA rewrites confirmed, CORS ALLOWED_ORIGINS updated to current preview URL, MongoDB DB_NAME fallback fixed, proxy port corrected to 8001
 
 ## Vercel Deployment Notes
 - /app/frontend/vercel.json: SPA redirect rewrites configured
