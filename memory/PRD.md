@@ -61,8 +61,9 @@ Comprehensive LMS - fix bugs, integrate AI, Google OAuth, redesign entire UI.
 
 ## Prioritized Backlog
 ### P1
-- Set up Resend verified sending domain for email delivery (currently only can send to Resend account owner's email in sandbox mode — domain verification at resend.com/domains required to send to mabdulmajeed.code@gmail.com)
+- Set up Resend verified sending domain for email delivery (domain verification at resend.com/domains required to send to mabdulmajeed.code@gmail.com)
 - Test Google OAuth with real Google account end-to-end
+- Set REACT_APP_BACKEND_URL in Vercel env vars when deploying to production
 
 ### P2
 - Sequential lesson drip locking
