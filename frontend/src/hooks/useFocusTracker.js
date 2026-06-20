@@ -22,7 +22,7 @@ export function useFocusTracker({ studentId, lessonId, onFocusUpdate }) {
     tabSwitches.current = 0;
     lastTick.current = Date.now();
     lastActivity.current = Date.now();
-    isFocused.current = !document.hidden && document.hasFocus();
+    isFocused.current = !document.hidden;
     onFocusUpdate?.(100);
 
     const persist = () => fetch(`${API}/attention-logs`, {
@@ -38,10 +38,11 @@ export function useFocusTracker({ studentId, lessonId, onFocusUpdate }) {
       }),
     }).catch(() => {});
 
+    // ONLY use Page Visibility API — window.blur fires on same-page iframe clicks
+    // which causes false-positive focus-lost events. document.hidden is the
+    // correct signal for real tab/window switches.
     const markFocusLost = () => {
-      // Browsers can detect background/tab/window visibility only. They cannot
-      // identify which website, tab, or desktop application the learner opened.
-      // That limitation is intentional browser sandboxing and privacy protection.
+      if (!document.hidden) return; // guard: only act on real tab switches
       if (isFocused.current) {
         isFocused.current = false;
         tabSwitches.current += 1;
@@ -49,6 +50,7 @@ export function useFocusTracker({ studentId, lessonId, onFocusUpdate }) {
       }
     };
     const markFocusReturned = () => {
+      if (document.hidden) return; // still hidden, ignore
       isFocused.current = true;
       lastActivity.current = Date.now();
       const focusPercent = getFocusPercent();
@@ -72,8 +74,6 @@ export function useFocusTracker({ studentId, lessonId, onFocusUpdate }) {
     }, 1000);
     const checkpoint = window.setInterval(persist, 30000);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", markFocusLost);
-    window.addEventListener("focus", markFocusReturned);
     window.addEventListener("mousemove", markActivity, { passive: true });
     window.addEventListener("keydown", markActivity);
     window.addEventListener("click", markActivity);
@@ -81,8 +81,6 @@ export function useFocusTracker({ studentId, lessonId, onFocusUpdate }) {
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", markFocusLost);
-      window.removeEventListener("focus", markFocusReturned);
       window.removeEventListener("mousemove", markActivity);
       window.removeEventListener("keydown", markActivity);
       window.removeEventListener("click", markActivity);

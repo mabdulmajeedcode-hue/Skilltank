@@ -1166,17 +1166,32 @@ function Landing() {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [certs, setCerts] = useState([]);
+  const [landingFilter, setLandingFilter] = useState({ category: "", price: "", rating: "" });
   useEffect(() => {
     Promise.all([
-      request("/courses?sort=popular&limit=10"),
+      request("/courses?sort=popular&limit=60"),
       request("/certifications"),
     ]).then(([courseRows, certRows]) => {
       setCourses(courseRows);
       setCerts(certRows);
     });
   }, []);
+  const applyLandingFilter = () => {
+    const params = new URLSearchParams();
+    if (landingFilter.category) params.set("category", landingFilter.category);
+    if (landingFilter.price) params.set("price", landingFilter.price);
+    if (landingFilter.rating) params.set("rating", landingFilter.rating);
+    navigate(`/courses?${params.toString()}`);
+  };
+  const filteredCourses = courses.filter((c) => {
+    if (landingFilter.price === "free" && !c.is_free) return false;
+    if (landingFilter.price === "paid" && c.is_free) return false;
+    if (landingFilter.rating && c.rating_avg < parseFloat(landingFilter.rating)) return false;
+    if (landingFilter.category && !c.category.toLowerCase().includes(landingFilter.category.toLowerCase())) return false;
+    return true;
+  });
   const rows = (category) =>
-    courses
+    filteredCourses
       .filter((course) =>
         course.category.toLowerCase().includes(category.toLowerCase()),
       )
@@ -1218,6 +1233,40 @@ function Landing() {
             ))}
           </div>
         </section>
+        <div className="landing-filter-bar">
+          <select
+            value={landingFilter.category}
+            onChange={(e) => setLandingFilter((f) => ({ ...f, category: e.target.value }))}
+            data-testid="landing-category-filter"
+          >
+            <option value="">All Categories</option>
+            {["Development", "Data Science", "Design", "Business", "Marketing", "IT & Software", "Finance", "Personal Development"].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            value={landingFilter.price}
+            onChange={(e) => setLandingFilter((f) => ({ ...f, price: e.target.value }))}
+            data-testid="landing-price-filter"
+          >
+            <option value="">All Prices</option>
+            <option value="free">Free</option>
+            <option value="paid">Paid</option>
+          </select>
+          <select
+            value={landingFilter.rating}
+            onChange={(e) => setLandingFilter((f) => ({ ...f, rating: e.target.value }))}
+            data-testid="landing-rating-filter"
+          >
+            <option value="">Any Rating</option>
+            <option value="4.5">4.5+ stars</option>
+            <option value="4">4+ stars</option>
+            <option value="3.5">3.5+ stars</option>
+          </select>
+          <button className="button primary" onClick={applyLandingFilter} data-testid="landing-filter-apply">
+            Find Courses
+          </button>
+        </div>
         <div className="category-strip">
           {[
             "Development",
@@ -2507,46 +2556,87 @@ function CertificateCard({ cert, enrollment }) {
 async function downloadCard(id, filename) {
   const element = document.getElementById(id);
   if (!element) return;
-  const lines = element.innerText
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 28);
-  const escapePdf = (value) =>
-    value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-  const content = [
-    "BT",
-    "/F1 18 Tf",
-    "50 550 Td",
-    ...lines.map((line, index) =>
-      `${index ? "0 -24 Td " : ""}(${escapePdf(line)}) Tj`,
-    ),
-    "ET",
-  ].join("\n");
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
-  ];
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-  objects.forEach((object, index) => {
-    offsets.push(pdf.length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-  const xref = pdf.length;
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  offsets.slice(1).forEach((offset) => {
-    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  // Build a canvas-based LinkedIn-ready share image
+  const canvas = document.createElement("canvas");
+  canvas.width = 900;
+  canvas.height = 500;
+  const ctx = canvas.getContext("2d");
+  // Background gradient
+  const grad = ctx.createLinearGradient(0, 0, 900, 500);
+  grad.addColorStop(0, "#0a1628");
+  grad.addColorStop(1, "#0e2b1a");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 900, 500);
+  // Decorative accent blob
+  ctx.beginPath();
+  ctx.arc(750, 80, 180, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(34,197,94,0.08)";
+  ctx.fill();
+  // Brand pill
+  ctx.fillStyle = "rgba(34,197,94,0.15)";
+  ctx.beginPath(); ctx.roundRect(54, 48, 160, 36, 18); ctx.fill();
+  ctx.fillStyle = "#4ade80";
+  ctx.font = "bold 13px system-ui, sans-serif";
+  ctx.fillText("SKILL TANK", 80, 71);
+  // Year
+  ctx.fillStyle = "rgba(255,255,255,0.3)";
+  ctx.font = "12px system-ui, sans-serif";
+  ctx.fillText(new Date().getFullYear(), 800, 71);
+  // Headline
+  const progressEl = element.querySelector("[class*=progress-ring] strong, [class*=ring] strong");
+  const progressValue = progressEl?.innerText || "100";
+  const courseTitle = document.querySelector(".study-workspace h1, .learn-header h1, .lesson-title")?.innerText
+    || document.title.replace(" · Skill Tank", "").trim()
+    || "Course Module";
+  // Big motivational headline
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 38px system-ui, sans-serif";
+  const headlineLine = `${progressValue}% Course Completed`;
+  ctx.fillText(headlineLine, 54, 180);
+  // Sub-headline
+  ctx.fillStyle = "#4ade80";
+  ctx.font = "bold 20px system-ui, sans-serif";
+  ctx.fillText("Your skills are taking shape!", 54, 222);
+  // Course title
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.font = "16px system-ui, sans-serif";
+  ctx.fillText(courseTitle.slice(0, 60), 54, 270);
+  // Progress bar
+  ctx.fillStyle = "rgba(255,255,255,0.1)";
+  ctx.beginPath(); ctx.roundRect(54, 310, 500, 16, 8); ctx.fill();
+  ctx.fillStyle = "#22c55e";
+  const barWidth = Math.max(8, Math.round((Math.min(100, parseInt(progressValue, 10) || 100) / 100) * 500));
+  ctx.beginPath(); ctx.roundRect(54, 310, barWidth, 16, 8); ctx.fill();
+  // Progress label
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.font = "13px system-ui, sans-serif";
+  ctx.fillText(`${progressValue}% complete`, 54, 348);
+  // Badge circle
+  ctx.fillStyle = "rgba(34,197,94,0.18)";
+  ctx.beginPath(); ctx.arc(770, 300, 90, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "rgba(34,197,94,0.45)";
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(770, 300, 90, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 40px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(progressValue + "%", 770, 310);
+  ctx.font = "13px system-ui, sans-serif";
+  ctx.fillStyle = "#4ade80";
+  ctx.fillText("done", 770, 335);
+  ctx.textAlign = "left";
+  // Footer
+  ctx.fillStyle = "rgba(255,255,255,0.2)";
+  ctx.fillRect(54, 430, 792, 1);
+  ctx.fillStyle = "rgba(255,255,255,0.35)";
+  ctx.font = "12px system-ui, sans-serif";
+  ctx.fillText("Earned with Skill Tank · skilltank.dev", 54, 458);
+  ctx.fillText("Learning is progress. Progress is everything.", 400, 458);
+  // Export as PNG
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob([pdf], { type: "application/pdf" }));
-  link.download = filename;
+  link.download = filename.replace(".pdf", ".png");
+  link.href = canvas.toDataURL("image/png");
   link.click();
-  URL.revokeObjectURL(link.href);
 }
 
 function MarkdownNotes({ text }) {
@@ -2760,7 +2850,9 @@ function Learn() {
     request(`/lessons/${lessonId}/started`, { method: "POST" }).catch(() => {});
   }, [data?.lesson?.id, lessonId]);
   useEffect(() => {
-    const lost = () => setFocusWarning(true);
+    // Only show focus warning on real tab switches (document.hidden),
+    // not on same-page iframe clicks which also fired window.blur.
+    const lost = () => { if (document.hidden) setFocusWarning(true); };
     const returned = () => setFocusWarning(false);
     window.addEventListener("skilltank:focus-lost", lost);
     window.addEventListener("skilltank:focus-returned", returned);
@@ -3483,6 +3575,7 @@ function Interview() {
   );
   const [role, setRole] = useState("Software Engineer");
   const [started, setStarted] = useState(false);
+  const [beginLoading, setBeginLoading] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [provider, setProvider] = useState("structured_fallback");
   const [step, setStep] = useState(0);
@@ -3493,6 +3586,13 @@ function Interview() {
   const [past, setPast] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [interviewMessage, setInterviewMessage] = useState("");
+  const FALLBACK_QS = [
+    { type: "open_ended", prompt: "Tell me about yourself and why you're excited about this role." },
+    { type: "open_ended", prompt: "Describe a challenging technical problem you solved recently. Walk me through your approach." },
+    { type: "open_ended", prompt: "How do you handle disagreements with teammates on a technical decision?" },
+    { type: "open_ended", prompt: "Walk me through a project you're most proud of and your specific contributions." },
+    { type: "open_ended", prompt: "Where do you see yourself in three years and how does this role fit that path?" },
+  ];
   const roleOptions = [
     { title: "Frontend Developer", icon: Code, description: "UI architecture, React, accessibility, and browser fundamentals.", skills: ["React", "JavaScript", "CSS", "Accessibility"] },
     { title: "Python Developer", icon: Terminal, description: "Python fundamentals, automation, APIs, and clean backend code.", skills: ["Python", "APIs", "Testing", "Automation"] },
@@ -3506,25 +3606,31 @@ function Interview() {
   const currentQuestion =
     questions[step] && typeof questions[step] === "object"
       ? questions[step]
-      : { type: "open_ended", prompt: questions[step] || "" };
+      : { type: "open_ended", prompt: questions[step] || "Loading question…" };
   const isMultipleChoice = currentQuestion.type === "multiple_choice";
   const canSubmit = isMultipleChoice ? Boolean(answer) : answer.trim().split(/\s+/).filter(Boolean).length >= 3;
   useEffect(() => {
     request("/dashboard").then((data) => setPast(data.interviews || []));
   }, [result]);
   const begin = async (selectedRole = role) => {
-    const d = await request(
-      `/interviews/questions/${encodeURIComponent(selectedRole)}`,
-    );
+    setBeginLoading(true);
+    setInterviewMessage("");
+    try {
+      const d = await request(
+        `/interviews/questions/${encodeURIComponent(selectedRole)}`,
+      );
+      const loaded = (d.questions || []).map((q) =>
+        typeof q === "string" ? { type: "open_ended", prompt: q } : q,
+      );
+      setQuestions(loaded.length >= 5 ? loaded : FALLBACK_QS);
+      setProvider(d.provider || "structured_fallback");
+    } catch (_) {
+      setQuestions(FALLBACK_QS);
+      setProvider("local_fallback");
+    } finally {
+      setBeginLoading(false);
+    }
     setRole(selectedRole);
-    setQuestions(
-      (d.questions || []).map((question) =>
-        typeof question === "string"
-          ? { type: "open_ended", prompt: question }
-          : question,
-      ),
-    );
-    setProvider(d.provider);
     setStep(0);
     setAnswer("");
     setTranscript([]);
@@ -3599,7 +3705,7 @@ function Interview() {
             <h1>AI Career Mock Interview</h1>
             <p>Practice role-based technical interviews and receive detailed structured scorecards.</p>
             <div className="interview-info"><BrainCircuit /><span><strong>AI Readiness Score + XP</strong>Complete five answers to earn 30 XP and improve your career-readiness profile.</span></div>
-            <div className="role-grid">{roleOptions.map(option => { const Icon = option.icon; return <article className={role === option.title ? "selected" : ""} key={option.title}><span><Icon /></span><h2>{option.title}</h2><p>{option.description}</p><small>SKILLS CHECKED</small><div>{option.skills.map(skill => <i key={skill}>{skill}</i>)}</div><Button onClick={() => begin(option.title)}>Start Technical Interview</Button></article>; })}</div>
+            <div className="role-grid">{roleOptions.map(option => { const Icon = option.icon; return <article className={role === option.title ? "selected" : ""} key={option.title}><span><Icon /></span><h2>{option.title}</h2><p>{option.description}</p><small>SKILLS CHECKED</small><div>{option.skills.map(skill => <i key={skill}>{skill}</i>)}</div><Button onClick={() => begin(option.title)} disabled={beginLoading} data-testid={`start-interview-${option.title.replace(/\s+/g,"-").toLowerCase()}`}>{beginLoading && role === option.title ? "Loading…" : "Start Interview"}</Button></article>; })}</div>
           </section>
           <section className="past-interviews">
             <SectionHead
@@ -4855,6 +4961,78 @@ function AdminDashboard({ view = "overview" }) {
       </section>
       {tab === "overview" && (
         <>
+          {/* Analytics Charts Grid */}
+          <div className="admin-charts-grid">
+            <div className="panel chart-panel">
+              <SectionHead title="Platform metrics" sub="Live data from your database." />
+              <div className="admin-metric-bars">
+                {[
+                  { label: "Students", value: stats.total_students, max: Math.max(stats.total_students, 1), color: "var(--green)" },
+                  { label: "Enrollments", value: stats.total_enrollments, max: Math.max(stats.total_enrollments, 1), color: "#7c3aed" },
+                  { label: "Certificates", value: stats.total_certificates, max: Math.max(stats.total_enrollments, 1), color: "#1d4ed8" },
+                  { label: "Courses", value: stats.total_courses, max: Math.max(stats.total_courses, 1), color: "#d97706" },
+                ].map(({ label, value, max, color }) => (
+                  <div key={label} className="admin-metric-bar-row">
+                    <span>{label}</span>
+                    <div className="admin-bar-track">
+                      <div className="admin-bar-fill" style={{ width: `${Math.round((value / max) * 100)}%`, background: color }} />
+                    </div>
+                    <strong>{value.toLocaleString()}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="panel chart-panel">
+              <SectionHead title="Completion rate" sub="Enrollments converted to certificates." />
+              <div className="admin-completion-ring">
+                <svg viewBox="0 0 120 120" width="120" height="120">
+                  <circle cx="60" cy="60" r="52" fill="none" stroke="#f0f4f2" strokeWidth="12" />
+                  <circle
+                    cx="60" cy="60" r="52" fill="none"
+                    stroke="var(--green)" strokeWidth="12"
+                    strokeDasharray={`${Math.round((stats.total_certificates / Math.max(stats.total_enrollments, 1)) * 326)} 326`}
+                    strokeLinecap="round" transform="rotate(-90 60 60)"
+                  />
+                </svg>
+                <div className="admin-ring-center">
+                  <strong>{stats.total_enrollments > 0 ? Math.round((stats.total_certificates / stats.total_enrollments) * 100) : 0}%</strong>
+                  <small>Completion</small>
+                </div>
+              </div>
+              <div className="admin-ring-legend">
+                <span><i style={{ background: "var(--green)" }} /> Certified: {stats.total_certificates}</span>
+                <span><i style={{ background: "#f0f4f2", border: "1px solid #d1d5db" }} /> Enrolled: {stats.total_enrollments}</span>
+              </div>
+            </div>
+            <div className="panel chart-panel">
+              <SectionHead title="Enrollments by category" sub="Top course categories." />
+              <div className="admin-category-bars">
+                {Object.entries(
+                  (data.courses || []).reduce((acc, c) => {
+                    acc[c.category] = (acc[c.category] || 0) + (c.enrollment_count || 0);
+                    return acc;
+                  }, {})
+                )
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 5)
+                  .map(([cat, count], i) => {
+                    const maxVal = Math.max(...Object.values(
+                      (data.courses || []).reduce((acc, c) => { acc[c.category] = (acc[c.category] || 0) + (c.enrollment_count || 0); return acc; }, {})
+                    ), 1);
+                    const colors = ["var(--green)", "#7c3aed", "#1d4ed8", "#d97706", "#be185d"];
+                    return (
+                      <div key={cat} className="admin-metric-bar-row">
+                        <span style={{ fontSize: 11 }}>{cat.length > 14 ? cat.slice(0, 13) + "…" : cat}</span>
+                        <div className="admin-bar-track">
+                          <div className="admin-bar-fill" style={{ width: `${Math.round((count / maxVal) * 100)}%`, background: colors[i % colors.length] }} />
+                        </div>
+                        <strong>{count}</strong>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
           <div className="two-column">
             <div className="panel">
               <SectionHead
@@ -4864,9 +5042,9 @@ function AdminDashboard({ view = "overview" }) {
               <div className="health-list">
                 {[
                   ["Authentication", "Operational"],
-                  ["Payment sandbox", "Test mode"],
-                  ["AI interview", "Fallback ready"],
-                  ["Notification triggers", "Logging"],
+                  ["Payment sandbox", "Test mode active"],
+                  ["AI interview", "Claude 4.6 + fallback"],
+                  ["Notification triggers", "Logging + Resend"],
                 ].map((x) => (
                   <div key={x[0]}>
                     <span>
