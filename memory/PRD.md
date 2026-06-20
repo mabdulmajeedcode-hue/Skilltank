@@ -1,57 +1,60 @@
-# Skill Tank LMS — Project PRD
+# Skill Tank LMS — Project PRD (Updated)
 
 ## Original Problem Statement
-Comprehensive LMS upgrade: Fix critical bugs (Stripe, Interview, Focus Tracker, Video), implement real AI (Claude 4.6), Emergent Google OAuth, landing page filters, admin analytics charts, LinkedIn card, Resend email. Ensure Vercel/Render deployment compatibility.
+Comprehensive LMS - fix bugs, integrate AI, Google OAuth, redesign entire UI.
 
 ## Architecture
-- **Frontend**: React (Create React App), single App.js + styles.css
-- **Backend**: FastAPI + SQLite (custom Store abstraction), uvicorn on port 8001, server.py → main.py
+- **Frontend**: React (CRA), single App.js + styles.css
+- **Backend**: FastAPI + SQLite, server.py → main.py  
 - **AI**: Claude Sonnet 4.6 via emergentintegrations (Emergent LLM key)
-- **Auth**: Custom JWT + Emergent-managed Google OAuth (/auth/callback route)
-- **Payments**: Stripe sandbox simulation (sandbox_ session IDs)
-- **Email**: Resend (RESEND_API_KEY set, domain verification pending)
+- **Auth**: Custom JWT + Emergent-managed Google OAuth
+- **Payments**: Stripe sandbox simulation
+- **Email**: Resend (key configured, domain verification pending)
+- **Fonts**: Outfit (headings) + Manrope (body) from Google Fonts
 - **Preview URL**: https://7a64f86c-bbda-4081-8a83-f98fc0b5b62f.preview.emergentagent.com
 
 ## What's Been Implemented
 
-### Session 1 — Phase 1 Bug Fixes + AI
-- [x] **server.py created** — Backend was failing to start, created server.py importing from main
-- [x] **Route/Category Refresh Bug** — Catalog uses useSearchParams() from React Router
-- [x] **Emergent Google OAuth** — AuthCallback + POST /api/auth/google-emergent endpoint
-- [x] **Back Button on Auth Pages** — "← Back to home" above login form
-- [x] **AI Chatbot Enter key** — Enter key submits chat messages
-- [x] **Claude Sonnet 4.6** — lesson coach, quiz generation, interview questions
+### Session 1 — Phase 1: Critical Bug Fixes
+- server.py created, Catalog useSearchParams fix, Emergent Google OAuth, back button, AI chatbot Enter key, Claude Sonnet 4.6 AI
 
-### Session 2 — Full Feature Matrix + Critical Bug Fixes
-- [x] **Stripe Sandbox** — Full sandbox flow bypassing Stripe API: creates enrollment directly
-- [x] **AI Interview Fix** — try-catch with FALLBACK_QS + loading state; backend multi-key LLM handling
-- [x] **Focus Tracker Fix** — Only visibilitychange, no more window.blur/focus false positives
-- [x] **Video Player Expanded** — max-width: 1400px, min-height: 300px
-- [x] **Admin Analytics Charts** — Metric bars, completion ring, category enrollment bars
-- [x] **Landing Page Filters** — Category/Price/Rating filter dropdowns on homepage
-- [x] **LinkedIn Card** — Canvas-based PNG with branding, gradient, progress bar
-- [x] **Resend Email** — RESEND_API_KEY configured, triggers on login/enrollment (domain needs verification)
+### Session 2 — Phase 2: Feature Matrix
+- Stripe sandbox, AI Interview fix, Focus tracker fix, Admin analytics charts, Landing filters, LinkedIn Card PNG, Resend email wired
 
-## Vercel Compatibility
-- /app/frontend/vercel.json: {"rewrites": [{"source": "/(.*)", "destination": "/index.html"}]}
-- All /api/* routes → backend (Render/FastAPI)
-- No hardcoded secrets in frontend code
+### Session 3 — Phase 3: Comprehensive UI Overhaul (All Tests Pass 100%)
+- Google Fonts: Outfit headings + Manrope body
+- CSS variables: richer tokens, shadows, glow effects
+- Course cards: redesign with glassmorphism badges, gradient overlay, hover-lift, animated thumbnails
+- Buttons: premium shadow, smooth transitions, states (primary/soft/ghost/danger)
+- Sidebar nav: active state gradient, hover effects
+- Stat cards: colored icon gradients per category (green/purple/yellow/blue/rose)
+- Login page: rich dark gradient left panel, premium form inputs with focus glow
+- Landing hero: deep gradient with radial glow, Outfit font, em accent text
+- Panels: 1.5px borders, subtle shadow
+- Admin: colorful metric charts, styled tables, delivery status badges
+- Modal: glassmorphism backdrop, styled form inputs
+- Tables: proper header styling, zebra hover rows
+- Interview role cards: dark CTA buttons, styled skill tags
+- Mobile: responsive layouts tested at 375px
 
-## Prioritized Backlog
-
-### P1 (High Priority)
-- Verify Resend email with domain setup (Resend dashboard domain verification)
-- Test Google OAuth end-to-end with real Google account
-- Mobile responsive audit at 375px
-
-### P2 (Good-to-Have)
-- Sequential lesson drip locking
-- Coupon engine validation
-- Real-time note timestamping at video milestones
-- Telegram notification integration
-- Cohort allocation engine
+## Vercel Deployment Notes
+- /app/frontend/vercel.json: SPA redirect rewrites configured
+- REACT_APP_BACKEND_URL in .env
+- DANGEROUSLY_DISABLE_HOST_CHECK=true for dev server
+- No hardcoded secrets in frontend
 
 ## Test Credentials
 - student@skilltank.dev / demo123
-- instructor@skilltank.dev / demo123
+- instructor@skilltank.dev / demo123  
 - admin@skilltank.dev / demo123
+
+## Prioritized Backlog
+### P1
+- Set up Resend verified sending domain for email delivery
+- Test Google OAuth with real Google account end-to-end
+
+### P2
+- Sequential lesson drip locking
+- Telegram notification delivery
+- Coupon engine UI polish
+- Real-time note timestamping
