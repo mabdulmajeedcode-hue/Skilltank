@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 
-const API = process.env.REACT_APP_API_URL || "/api";
+const API = process.env.REACT_APP_BACKEND_URL
+  ? `${process.env.REACT_APP_BACKEND_URL}/api`
+  : (process.env.REACT_APP_API_URL || "/api");
 
 export function useFocusTracker({ studentId, lessonId, onFocusUpdate }) {
   const sessionStart = useRef(Date.now());
