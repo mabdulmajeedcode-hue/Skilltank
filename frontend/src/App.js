@@ -6142,7 +6142,7 @@ function SubscribePage() {
         <div className="pro-plan">
           <Logo />
           <strong>
-            ?999 <small>/ month</small>
+            ₹999 <small>/ month</small>
           </strong>
           <span>Sandbox subscription - test mode only</span>
           <ul>

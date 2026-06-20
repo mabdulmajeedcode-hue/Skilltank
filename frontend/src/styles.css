@@ -4329,8 +4329,13 @@ img {
   display: flex;
   gap: 10px;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   padding: 22px max(24px, calc((100vw - 1240px) / 2));
   border-bottom: 1px solid var(--line);
+}
+.category-strip::-webkit-scrollbar {
+  display: none;
 }
 .category-strip button {
   white-space: nowrap;
@@ -4888,6 +4893,12 @@ img {
   .course-dark-hero {
     padding: 35px 20px;
   }
+  .course-dark-hero h1 {
+    font-size: 26px;
+  }
+  .purchase-panel > strong {
+    font-size: 22px;
+  }
   .purchase-panel {
     position: static;
     width: auto;
@@ -5191,6 +5202,41 @@ img {
   }
   .admin-table-scroll {
     padding: 8px;
+  }
+}
+
+/* ── 375px sweep: final mobile guards ─────────────────────────── */
+@media (max-width: 480px) {
+  /* Subscribe page plan cards stack */
+  .subscribe-page .plan-grid,
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
+  /* Coupon/settings actions stay full-width */
+  .coupon-form,
+  .settings-form {
+    flex-direction: column;
+  }
+  .coupon-form .button,
+  .settings-form .button {
+    width: 100%;
+  }
+  /* Reduce course hero heading further on very small screens */
+  .course-dark-hero h1 {
+    font-size: 22px;
+  }
+  /* Reduce landing hero heading on very small screens */
+  .landing-hero h1 {
+    font-size: 30px;
+  }
+  /* Prevent breadcrumb/filter overflow */
+  .breadcrumb,
+  .filter-chips {
+    flex-wrap: wrap;
+  }
+  /* Horizontal-scroll tables stay contained */
+  .horizontal-cards > article {
+    flex: 0 0 250px;
   }
 }
 
