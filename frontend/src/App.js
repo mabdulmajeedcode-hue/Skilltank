@@ -12,6 +12,7 @@ import {
   NavLink,
   Route,
   Routes,
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
@@ -304,22 +305,18 @@ function AuthCallback() {
     const params = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, ""));
     const session_id = params.get("session_id") || hashParams.get("session_id");
+    const returnTo = params.get("returnTo") || hashParams.get("returnTo") || "";
 
     if (!session_id) {
       setError("No authentication session found. Please try again.");
       return;
     }
     googleEmergentLogin(session_id)
-      .then((u) =>
-        navigate(
-          u.role === "admin"
-            ? "/admin"
-            : u.role === "instructor"
-              ? "/instructor"
-              : "/dashboard",
-          { replace: true },
-        ),
-      )
+      .then((u) => {
+        const defaultPath =
+          u.role === "admin" ? "/admin" : u.role === "instructor" ? "/instructor" : "/dashboard";
+        navigate(returnTo || defaultPath, { replace: true });
+      })
       .catch((err) => setError(err.message || "Sign in failed. Please try again."));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -712,7 +709,8 @@ function Shell({ children, title, eyebrow, action }) {
 
 function Protected({ children, roles }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
   if (roles && !roles.includes(user.role)) {
     sessionStorage.setItem(
       "skilltank_access_message",
@@ -943,6 +941,7 @@ function PublicPage({ children }) {
 function Login({ initialMode = "login" }) {
   const { user, login, signup, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({
     email: "student@skilltank.dev",
     password: "demo123",
@@ -955,18 +954,13 @@ function Login({ initialMode = "login" }) {
   });
   const [mode, setMode] = useState(initialMode);
   const [error, setError] = useState("");
+
+  const defaultRedirect = (role) =>
+    role === "admin" ? "/admin" : role === "instructor" ? "/instructor" : "/dashboard";
+
   if (user)
-    return (
-      <Navigate
-        to={
-          user.role === "admin"
-            ? "/admin"
-            : user.role === "instructor"
-              ? "/instructor"
-              : "/dashboard"
-        }
-      />
-    );
+    return <Navigate to={location.state?.from?.pathname || defaultRedirect(user.role)} replace />;
+
   const submit = async (e) => {
     e.preventDefault();
     setError("");
@@ -975,13 +969,7 @@ function Login({ initialMode = "login" }) {
         mode === "login"
           ? await login(form.email, form.password)
           : await signup(signupForm);
-      navigate(
-        signedIn.role === "admin"
-          ? "/admin"
-          : signedIn.role === "instructor"
-            ? "/instructor"
-            : "/dashboard",
-      );
+      navigate(location.state?.from?.pathname || defaultRedirect(signedIn.role), { replace: true });
     } catch (err) {
       setError(err.message);
     }
@@ -996,7 +984,8 @@ function Login({ initialMode = "login" }) {
   };
   const continueWithGoogle = () => {
     setError("");
-    const callbackUrl = `${window.location.origin}/auth/callback`;
+    const returnTo = location.state?.from?.pathname || "";
+    const callbackUrl = `${window.location.origin}/auth/callback${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ""}`;
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(callbackUrl)}`;
   };
   return (
@@ -2012,6 +2001,7 @@ function CourseDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [course, setCourse] = useState(null);
   const [open, setOpen] = useState([0]);
   const [related, setRelated] = useState([]);
@@ -2052,7 +2042,7 @@ function CourseDetail() {
     count: reviews.filter((item) => item.rating === star).length,
   }));
   const enroll = async () => {
-    if (!user) return navigate("/login");
+    if (!user) return navigate("/login", { state: { from: location } });
     if (!course.is_free) return setCheckout(true);
     await request(`/enroll/${course.id}`, { method: "POST" });
     setEnrolled(true);

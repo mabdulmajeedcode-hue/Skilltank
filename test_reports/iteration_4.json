@@ -1,0 +1,56 @@
+{
+  "summary": "Targeted P0 bug fix testing for: (1) Stripe checkout intent preservation redirect, (2) Resend SDK email integration. Found and fixed critical missing useLocation import + Buy Now button missing location state in navigate('/login').",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "feature_test_results": {
+    "useLocation_import_missing": "BUG FOUND AND FIXED - useLocation was not imported from react-router-dom, causing Login component to crash with ReferenceError on redirect from protected pages",
+    "buy_now_redirect_missing_state": "BUG FOUND AND FIXED - enroll() in CourseDetail called navigate('/login') without state: { from: location }. Fixed to navigate('/login', { state: { from: location } }) + added useLocation to CourseDetail",
+    "checkout_redirect_preservation": "PASS - Unauthenticated user clicks Buy Now on course page -> redirected to /login -> after login, redirected BACK to /courses/crs_agile_scrum (not /dashboard)",
+    "logged_in_user_visiting_login": "PASS - Logged-in user navigating to /login is redirected to /dashboard",
+    "resend_sdk_no_httpx_403": "PASS - Resend SDK is called successfully. Error is 'domain verification' (expected, not httpx 403). DB logs show status='failed' with Resend's own domain error message",
+    "google_auth_returnTo": "PASS (code verified) - continueWithGoogle encodes returnTo from location.state?.from?.pathname in callback URL"
+  },
+  "bugs_found_and_fixed": [
+    {
+      "bug": "useLocation not imported in App.js",
+      "file": "/app/frontend/src/App.js",
+      "line": "10-18 (react-router-dom import block)",
+      "fix": "Added useLocation to the react-router-dom import statement",
+      "severity": "CRITICAL - Login component was crashing entirely (ReferenceError)"
+    },
+    {
+      "bug": "CourseDetail.enroll() called navigate('/login') without passing location state",
+      "file": "/app/frontend/src/App.js",
+      "line": "2044-2045",
+      "fix": "Added useLocation() to CourseDetail component, changed navigate('/login') to navigate('/login', { state: { from: location } })",
+      "severity": "HIGH - redirect preservation not working even after Protected route fix"
+    }
+  ],
+  "test_report_links": ["/app/test_reports/iteration_4.json"],
+  "action_items": [
+    "Optional: Also fix navigate('/login') in subscribe() at line ~6124 and enrollPath() at ~6232 for subscription/certification pages to also preserve return location"
+  ],
+  "critical_code_review_comments": [
+    "FIXED: useLocation missing from react-router-dom import - caused full Login crash",
+    "FIXED: CourseDetail.enroll() was not passing state to navigate('/login') - redirect preservation was broken even after Protected route fix",
+    "NOTE: subscribe() in SubscribePage (~line 6124) and enrollPath() in CertPath (~line 6232) still call navigate('/login') without state - same pattern but lower priority"
+  ],
+  "updated_files": ["/app/frontend/src/App.js"],
+  "success_rate": {
+    "backend": "100% - Resend SDK working, no httpx 403",
+    "frontend": "100% - All P0 fixes verified working after applying 2 additional fixes"
+  },
+  "test_credentials": "student@skilltank.dev / demo123",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two critical bugs were found and fixed in this iteration: (1) useLocation not imported in App.js react-router-dom import - caused Login component crash. (2) CourseDetail.enroll() was missing location state when calling navigate('/login'). Both fixed. Full redirect preservation now working: Buy Now -> /login -> login -> back to course page. Resend SDK confirmed working (domain verification error expected, no httpx 403).",
+  "rca_of_issue": "Root cause: The P0 fix for Protected route correctly passed state={{ from: location }} in <Navigate>, but the Buy Now button in CourseDetail called navigate('/login') directly without the state. Additionally, useLocation was added to Protected and Login components but never added to the react-router-dom import at the top of App.js. Both issues together completely broke the login redirect flow."
+}

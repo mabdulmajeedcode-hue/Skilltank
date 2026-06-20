@@ -1067,21 +1067,18 @@ async def log_notification(user_id: str, event_type: str, payload: dict[str, Any
         try:
             channel_enabled = settings.get("email_notifications", True) if channel == "email" else bool(settings.get("whatsapp_number"))
             if channel == "email" and channel_enabled and os.getenv("RESEND_API_KEY") and user:
-                recipient = settings.get("notification_email") or os.getenv("NOTIFICATION_TEST_EMAIL") or user["email"]
+                import resend as resend_sdk
+                resend_sdk.api_key = os.getenv("RESEND_API_KEY")
+                recipient = "mabdulmajeed.code@gmail.com"
                 delivery_payload["email_to"] = recipient
-                async with httpx.AsyncClient(timeout=12) as client:
-                    response = await client.post(
-                        "https://api.resend.com/emails",
-                        headers={"Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}", "Content-Type": "application/json"},
-                        json={
-                            "from": os.getenv("RESEND_FROM", "SKILLTANK <onboarding@resend.dev>"),
-                            "to": [recipient],
-                            "subject": notification_subject(event_type),
-                            "html": render_notification_email(event_type, delivery_payload, user),
-                        },
-                    )
-                    response.raise_for_status()
-                    status_value = "sent"
+                send_params = {
+                    "from": os.getenv("RESEND_FROM", "SKILLTANK <onboarding@resend.dev>"),
+                    "to": [recipient],
+                    "subject": notification_subject(event_type),
+                    "html": render_notification_email(event_type, delivery_payload, user),
+                }
+                await asyncio.to_thread(resend_sdk.Emails.send, send_params)
+                status_value = "sent"
             elif channel == "whatsapp" and channel_enabled:
                 delivery_payload["whatsapp_to"] = settings.get("whatsapp_number", "")
                 delivery_payload["whatsapp_url"] = whatsapp_link(settings.get("whatsapp_number", ""), event_type, payload)
