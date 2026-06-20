@@ -14,6 +14,7 @@ import {
   Routes,
   useNavigate,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 import {
   Award,
@@ -79,7 +80,6 @@ import { useFocusTracker } from "./hooks/useFocusTracker";
 
 const API = process.env.REACT_APP_API_URL || "/api";
 const API_ORIGIN = API.replace(/\/api\/?$/, "");
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "";
 const ENABLE_EXTERNAL_VIDEO =
   process.env.REACT_APP_ENABLE_EXTERNAL_VIDEO !== "false";
 const AuthContext = createContext(null);
@@ -227,25 +227,6 @@ async function uploadFile(file) {
   return response.json();
 }
 
-function loadGoogleIdentityScript() {
-  if (window.google?.accounts?.id) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector("script[data-google-identity]");
-    if (existing) {
-      existing.addEventListener("load", resolve, { once: true });
-      existing.addEventListener("error", reject, { once: true });
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.dataset.googleIdentity = "true";
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
 
 function AuthProvider({ children }) {
   const [user, setUser] = useState(() =>
@@ -282,12 +263,12 @@ function AuthProvider({ children }) {
       setLoading(false);
     }
   };
-  const googleLogin = async (credential, role = "student") => {
+  const googleEmergentLogin = async (session_id, role = "student") => {
     setLoading(true);
     try {
-      const data = await request("/auth/google", {
+      const data = await request("/auth/google-emergent", {
         method: "POST",
-        body: JSON.stringify({ credential, role }),
+        body: JSON.stringify({ session_id, role }),
       });
       localStorage.setItem("skilltank_token", data.access_token);
       localStorage.setItem("skilltank_user", JSON.stringify(data.user));
@@ -304,7 +285,7 @@ function AuthProvider({ children }) {
     setUser(null);
   };
   return (
-    <AuthContext.Provider value={{ user, login, signup, googleLogin, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, signup, googleEmergentLogin, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -312,6 +293,48 @@ function AuthProvider({ children }) {
 
 function useAuth() {
   return useContext(AuthContext);
+}
+
+function AuthCallback() {
+  const { googleEmergentLogin } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#\/?/, ""));
+    const session_id = params.get("session_id") || hashParams.get("session_id");
+
+    if (!session_id) {
+      setError("No authentication session found. Please try again.");
+      return;
+    }
+    googleEmergentLogin(session_id)
+      .then((u) =>
+        navigate(
+          u.role === "admin"
+            ? "/admin"
+            : u.role === "instructor"
+              ? "/instructor"
+              : "/dashboard",
+          { replace: true },
+        ),
+      )
+      .catch((err) => setError(err.message || "Sign in failed. Please try again."));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (error) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: 16 }}>
+        <p style={{ color: "#e53e3e" }}>{error}</p>
+        <button className="button primary" onClick={() => navigate("/login")}>
+          Back to login
+        </button>
+      </div>
+    );
+  }
+  return <Loading />;
 }
 
 function Button({ children, variant = "primary", className = "", ...props }) {
@@ -918,7 +941,7 @@ function PublicPage({ children }) {
 
 // MOBILE VERIFIED 375px
 function Login({ initialMode = "login" }) {
-  const { user, login, signup, googleLogin, loading } = useAuth();
+  const { user, login, signup, loading } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     email: "student@skilltank.dev",
@@ -971,35 +994,10 @@ function Login({ initialMode = "login" }) {
     };
     setForm({ email: emails[role], password: "demo123" });
   };
-  const continueWithGoogle = async () => {
+  const continueWithGoogle = () => {
     setError("");
-    if (!GOOGLE_CLIENT_ID) {
-      setError("Google sign-in isn't configured yet - please use email sign-up.");
-      return;
-    }
-    try {
-      await loadGoogleIdentityScript();
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: async ({ credential }) => {
-          try {
-            const signedIn = await googleLogin(credential, signupForm.role || "student");
-            navigate(signedIn.role === "instructor" ? "/instructor" : "/dashboard");
-          } catch (err) {
-            setError(err.message);
-          }
-        },
-      });
-      const googlePickerMethod = ["pro", "mpt"].join("");
-      const showGooglePicker = window.google.accounts.id[googlePickerMethod];
-      showGooglePicker((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          setError("Google sign-in could not open. Please use email sign-up.");
-        }
-      });
-    } catch (err) {
-      setError(err.message || "Google sign-in could not load. Please use email sign-up.");
-    }
+    const callbackUrl = `${window.location.origin}/auth/callback`;
+    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(callbackUrl)}`;
   };
   return (
     <div className="login-page">
@@ -1035,6 +1033,14 @@ function Login({ initialMode = "login" }) {
         </div>
       </section>
       <section className="login-panel">
+        <button
+          type="button"
+          className="login-back-btn"
+          data-testid="login-back-home-btn"
+          onClick={() => navigate("/")}
+        >
+          <ChevronLeft size={18} /> Back to home
+        </button>
         <form onSubmit={submit}>
           <span className="eyebrow">
             {mode === "login" ? "WELCOME BACK" : "CREATE YOUR ACCOUNT"}
@@ -1699,12 +1705,12 @@ function Catalog() {
     "Course catalog",
     "Search Skill Tank courses by category, level, rating, price, and career outcome.",
   );
+  const [searchParams] = useSearchParams();
   const [courses, setCourses] = useState([]);
-  const initialParams = new URLSearchParams(window.location.search);
   const [filters, setFilters] = useState({
-    search: initialParams.get("q") || "",
-    category: initialParams.get("category") || "",
-    subcategory: initialParams.get("subcategory") || "",
+    search: searchParams.get("q") || searchParams.get("search") || "",
+    category: searchParams.get("category") || "",
+    subcategory: searchParams.get("subcategory") || "",
     price: "",
     level: "",
   });
@@ -1712,6 +1718,16 @@ function Catalog() {
   const [checkoutCourse, setCheckoutCourse] = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { user } = useAuth();
+
+  // Sync filters when URL params change (e.g. MegaMenu navigation)
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      search: searchParams.get("q") || searchParams.get("search") || "",
+      category: searchParams.get("category") || "",
+      subcategory: searchParams.get("subcategory") || "",
+    }));
+  }, [searchParams]);
   useEffect(() => {
     request(
       `/catalog?search=${encodeURIComponent(filters.search)}&category=${encodeURIComponent(filters.category)}&subcategory=${encodeURIComponent(filters.subcategory)}&price=${filters.price}&level=${filters.level}`,
@@ -6223,6 +6239,7 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Login initialMode="signup" />} />
       <Route path="/logout" element={<LogoutPage />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/" element={<Landing />} />
       <Route path="/subscribe" element={<SubscribePage />} />
       <Route path="/certifications" element={<CertificationsPage />} />

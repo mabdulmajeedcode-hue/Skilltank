@@ -168,6 +168,11 @@ class LessonAIRequest(BaseModel):
     question: str = ""
 
 
+class GoogleEmergentLogin(BaseModel):
+    session_id: str
+    role: str = "student"
+
+
 class SettingsUpdate(BaseModel):
     notification_email: EmailStr | None = None
     email_notifications: bool = True
@@ -1297,6 +1302,42 @@ async def google_auth(body: GoogleAuthRequest, request: Request) -> dict[str, An
     return {"access_token": create_token(user), "token_type": "bearer", "user": public_user(user)}
 
 
+@app.post("/api/auth/google-emergent")
+async def google_emergent_login(body: GoogleEmergentLogin, request: Request) -> dict[str, Any]:
+    check_auth_rate_limit(request)
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                "https://auth.emergentagent.com/api/validate",
+                params={"session_id": body.session_id},
+            )
+            if not resp.is_success:
+                raise HTTPException(401, "Invalid Google session. Please try signing in again.")
+            info = resp.json()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(503, "Google auth validation failed. Please try again.") from exc
+    email = str(info.get("email", "")).lower().strip()
+    if not email:
+        raise HTTPException(400, "Google account did not provide an email address.")
+    full_name = info.get("name") or email.split("@")[0].replace(".", " ").title()
+    user = await store.one("users", email=email)
+    if not user:
+        user = await store.insert("users", {
+            "id": uid("usr"), "full_name": full_name, "email": email,
+            "password_hash": passwords.hash(uid("google")), "role": body.role, "active": True,
+            "avatar": "".join(part[0] for part in full_name.split()[:2]).upper(),
+            "created_at": now_iso(), "auth_provider": "google",
+        })
+        asyncio.create_task(log_notification(user["id"], "signup_confirmed", {"message": "Welcome to Skill Tank. Your Google account is connected."}))
+    else:
+        if full_name and user.get("full_name") != full_name:
+            user = await store.update("users", {"id": user["id"]}, {"full_name": full_name})
+    asyncio.create_task(log_notification(user["id"], "login", {"message": "You just logged into Skill Tank with Google."}))
+    return {"access_token": create_token(user), "token_type": "bearer", "user": public_user(user)}
+
+
 @app.post("/api/auth/logout")
 async def logout(user: dict[str, Any] = Depends(current_user)) -> dict[str, bool]:
     asyncio.create_task(log_notification(user["id"], "logout", {"message": "You just logged out of Skill Tank."}))
@@ -1883,24 +1924,17 @@ async def lesson_ai_response(lesson: dict[str, Any], body: LessonAIRequest) -> t
         "notes": "Explain the lesson as a friendly tutor in concise prose. Mention the most important ideas and one small practice suggestion without dash-prefixed lists.",
         "question": f"Answer the learner's question using only the lesson context. Respond in natural, conversational sentences as a friendly tutor. Avoid bullet points and dash-prefixed lists unless the learner specifically asks for steps. Keep it concise: 2-4 sentences for simple questions. Question: {body.question}",
     }
-    api_key = os.getenv("AI_API_KEY")
+    api_key = os.getenv("EMERGENT_LLM_KEY") or os.getenv("AI_API_KEY")
     if api_key:
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    json={
-                        "model": os.getenv("AI_MODEL", "gpt-4o-mini"),
-                        "messages": [
-                            {"role": "system", "content": "You are the SKILLTANK lesson coach. Be accurate, concise, practical, and natural. Respond like a friendly tutor. Avoid bullet points and dash-prefixed lists unless the learner specifically asks for a step-by-step breakdown. Do not invent details outside the supplied lesson."},
-                            {"role": "user", "content": f"{context}\n\n{prompts[body.action]}"},
-                        ],
-                        "temperature": 0.3,
-                    },
-                )
-                response.raise_for_status()
-                return response.json()["choices"][0]["message"]["content"], "live_llm"
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            chat = LlmChat(
+                api_key=api_key,
+                session_id=uid("ail"),
+                system_message="You are the SKILLTANK lesson coach. Be accurate, concise, practical, and natural. Respond like a friendly tutor. Avoid bullet points and dash-prefixed lists unless the learner specifically asks for a step-by-step breakdown. Do not invent details outside the supplied lesson.",
+            ).with_model("anthropic", "claude-sonnet-4-6")
+            response_text = await chat.send_message(UserMessage(text=f"{context}\n\n{prompts[body.action]}"))
+            return response_text, "live_llm"
         except Exception:
             pass
     content = notes_context or context_body or "This lesson introduces a practical workflow and asks you to apply it."
@@ -2059,22 +2093,44 @@ async def generate_quiz(body: QuizGenerate, user: dict[str, Any] = Depends(requi
     course = await store.one("courses", id=module["course_id"])
     if user["role"] == "instructor" and course["instructor_id"] != user["id"]:
         raise HTTPException(403, "You do not own this course")
-    questions = [
-        {"question_text": "What is the central idea of this lesson?", "options": ["Apply the core concept", "Ignore the outcome", "Avoid practice", "Skip feedback"], "correct_option_index": 0},
-        {"question_text": "Which activity best checks understanding?", "options": ["A practical example", "Closing the page", "Avoiding questions", "Copying a title"], "correct_option_index": 0},
-        {"question_text": "What should learners do next?", "options": ["Practice and reflect", "Stop permanently", "Hide the work", "Remove context"], "correct_option_index": 0},
-        {"question_text": "Useful feedback should be…", "options": ["Specific and actionable", "Unrelated", "Invisible", "Needlessly vague"], "correct_option_index": 0},
-    ]
-    while len(questions) < 5:
-        questions.append({
-            "question_text": "What makes the answer strongest?",
-            "options": ["Specific evidence and a clear result", "A vague guess", "No example", "Ignoring the lesson"],
-            "correct_option_index": 0,
-        })
+    questions = None
+    api_key = os.getenv("EMERGENT_LLM_KEY") or os.getenv("AI_API_KEY")
+    if api_key:
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            chat = LlmChat(
+                api_key=api_key,
+                session_id=uid("qgen"),
+                system_message="You are a quiz generator for an online learning platform. Generate exactly 5 multiple-choice questions in JSON format.",
+            ).with_model("anthropic", "claude-sonnet-4-6")
+            prompt = (
+                f"Generate 5 multiple-choice quiz questions for a module titled '{module['title']}' "
+                f"in the course '{course['title']}'. "
+                "Return a JSON array only (no markdown, no explanation) with this exact structure: "
+                '[{"question_text": "...", "options": ["A", "B", "C", "D"], "correct_option_index": 0}, ...]'
+            )
+            raw = await chat.send_message(UserMessage(text=prompt))
+            import json as _json
+            match = re.search(r'\[.*\]', raw, re.DOTALL)
+            if match:
+                questions = _json.loads(match.group(0))
+                if not isinstance(questions, list) or len(questions) < 3:
+                    questions = None
+        except Exception:
+            questions = None
+    if not questions:
+        questions = [
+            {"question_text": "What is the central idea of this module?", "options": ["Apply the core concept", "Ignore the outcome", "Avoid practice", "Skip feedback"], "correct_option_index": 0},
+            {"question_text": "Which activity best checks understanding?", "options": ["A practical example", "Closing the page", "Avoiding questions", "Copying a title"], "correct_option_index": 0},
+            {"question_text": "What should learners do next?", "options": ["Practice and reflect", "Stop permanently", "Hide the work", "Remove context"], "correct_option_index": 0},
+            {"question_text": "Useful feedback should be…", "options": ["Specific and actionable", "Unrelated", "Invisible", "Needlessly vague"], "correct_option_index": 0},
+            {"question_text": "What makes the answer strongest?", "options": ["Specific evidence and a clear result", "A vague guess", "No example", "Ignoring the lesson"], "correct_option_index": 0},
+        ]
+    generated_by = "live_llm" if api_key and questions else "structured_ai_fallback"
     quiz = await store.one("quizzes", module_id=body.module_id)
     if quiz:
-        return await store.update("quizzes", {"id": quiz["id"]}, {"questions": questions, "generated_by": "structured_ai_fallback"})
-    return await store.insert("quizzes", {"id": uid("quiz"), "module_id": body.module_id, "course_id": module["course_id"], "title": f"{module['title']} knowledge check", "pass_threshold_percent": 60, "questions": questions, "generated_by": "structured_ai_fallback"})
+        return await store.update("quizzes", {"id": quiz["id"]}, {"questions": questions, "generated_by": generated_by})
+    return await store.insert("quizzes", {"id": uid("quiz"), "module_id": body.module_id, "course_id": module["course_id"], "title": f"{module['title']} knowledge check", "pass_threshold_percent": 60, "questions": questions, "generated_by": generated_by})
 
 
 @app.post("/api/courses/{course_id}/reviews")
@@ -2219,23 +2275,20 @@ async def interview_questions(job_role: str, _: dict[str, Any] = Depends(current
         ]
 
     questions = fallback_bank.get(job_role, fallback_bank["Software Engineer"])
-    if os.getenv("AI_API_KEY"):
+    api_key = os.getenv("EMERGENT_LLM_KEY") or os.getenv("AI_API_KEY")
+    if api_key:
         try:
-            async with httpx.AsyncClient(timeout=25) as client:
-                response = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {os.getenv('AI_API_KEY')}"},
-                    json={
-                        "model": os.getenv("AI_MODEL", "gpt-4o-mini"),
-                        "response_format": {"type": "json_object"},
-                        "messages": [
-                            {"role": "system", "content": "Return JSON with a questions array containing exactly five concise interview questions."},
-                            {"role": "user", "content": f"Generate a balanced technical and behavioral interview for a {job_role}."},
-                        ],
-                    },
-                )
-                response.raise_for_status()
-                generated = json.loads(response.json()["choices"][0]["message"]["content"]).get("questions", [])
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            import json as _json
+            chat = LlmChat(
+                api_key=api_key,
+                session_id=uid("iq"),
+                system_message="Return JSON with a questions array containing exactly five concise interview questions.",
+            ).with_model("anthropic", "claude-sonnet-4-6")
+            raw = await chat.send_message(UserMessage(text=f"Generate a balanced technical and behavioral interview for a {job_role}. Return JSON only."))
+            match = re.search(r'\{.*\}', raw, re.DOTALL)
+            if match:
+                generated = _json.loads(match.group(0)).get("questions", [])
                 if len(generated) == 5:
                     generated_rows = [str(item.get("prompt") if isinstance(item, dict) else item) for item in generated]
                     return {"job_role": job_role, "questions": mixed_questions(generated_rows), "provider": "live_llm"}

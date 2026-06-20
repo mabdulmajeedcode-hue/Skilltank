@@ -1885,13 +1885,35 @@ h3,
 }
 .login-panel {
   background: #fff;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 40px;
 }
+.login-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 20px;
+  transition: color 0.15s;
+}
+.login-back-btn:hover { color: var(--green-dark); }
 .login-panel form {
   width: 100%;
   max-width: 420px;
+}
+.login-back-btn {
+  align-self: flex-start;
+  max-width: 420px;
+  width: 100%;
 }
 .login-panel h2 {
   font-size: 30px;
