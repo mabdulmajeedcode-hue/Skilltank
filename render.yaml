@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: skilltank-lms
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    disk:
+      name: skilltank-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URL
+        sync: false
+      - key: MONGO_DB
+        value: skilltank
+      - key: SQLITE_PATH
+        value: /var/data/skilltank.db
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: gpt-4o-mini
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
+      - key: NOTIFICATION_TEST_EMAIL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
