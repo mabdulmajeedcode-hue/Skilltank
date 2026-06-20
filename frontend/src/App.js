@@ -3204,6 +3204,12 @@ function Learn() {
                   value={aiQuestion}
                   onChange={(e) => setAiQuestion(e.target.value)}
                   placeholder="Ask a lesson-grounded question…"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!aiLoading && aiQuestion.trim()) sendChat();
+                    }
+                  }}
                 />
                 <Button
                   disabled={aiLoading || !aiQuestion.trim()}
