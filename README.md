@@ -239,21 +239,6 @@ On the backend host, also set:
 - `NOTIFICATION_TEST_EMAIL` during QA/demo if desired
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` if Google sign-in should be active
 
-### Setting Up Google Sign-In
-
-1. Go to [console.cloud.google.com](https://console.cloud.google.com/) and create or select a project
-2. Navigate to **APIs & Services → OAuth consent screen** — choose External, fill in app name "Skill Tank" and your email, save
-3. Navigate to **APIs & Services → Credentials → Create Credentials → OAuth client ID**
-4. Choose **Web application**
-5. Under **Authorized JavaScript origins**, add your Vercel URL and `http://localhost:3000`
-6. Under **Authorized redirect URIs**, add the same URLs with `/auth/google/callback` appended
-7. Click Create, copy the Client ID and Client Secret
-8. Set `GOOGLE_CLIENT_ID` in Vercel (safe to expose publicly)
-9. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in your backend host — the secret must **never** be exposed on the frontend
-10. Redeploy both frontend and backend
-
-> This is a manual, one-time setup requiring your own Google account — credentials cannot be generated on your behalf.
-
 ---
 
 ## Verification
