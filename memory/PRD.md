@@ -44,6 +44,7 @@ Comprehensive LMS - fix bugs, integrate AI, Google OAuth, redesign entire UI.
 - **All CTA buttons preserve intent**: CourseDetail.enroll(), SubscribePage.subscribe(), CertificationDetailPage.enrollPath() all pass state to navigate('/login')
 - **Resend SDK fixed**: Replaced raw httpx.post with official resend Python SDK (asyncio.to_thread)
 - **Email recipient hardcoded**: All login notification emails target mabdulmajeed.code@gmail.com per user request
+- **Real Stripe checkout working**: Updated STRIPE_SECRET_KEY to real sk_test_51TkU9ME key. APP_URL corrected to current preview URL. Buy Now now opens real https://checkout.stripe.com page
 
 ## Vercel Deployment Notes
 - /app/frontend/vercel.json: SPA redirect rewrites configured
